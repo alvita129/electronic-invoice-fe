@@ -1446,12 +1446,14 @@ function UsersPage({
                 <span className="role-pill">
                   {member.userRole.replaceAll("_", " ")}
                 </span>
-                <button
-                  className="small-action"
-                  onClick={() => setEditor(member)}
-                >
-                  Edit
-                </button>
+                {member.username?.toLowerCase() !== "admin" && (
+                  <button
+                    className="small-action"
+                    onClick={() => setEditor(member)}
+                  >
+                    Edit
+                  </button>
+                )}
                 {member.userId !== currentUserId && member.username?.toLowerCase() !== "admin" && (
                   <button
                     className="small-action danger-text"
@@ -1459,9 +1461,6 @@ function UsersPage({
                   >
                     Delete
                   </button>
-                )}
-                {member.username?.toLowerCase() === "admin" && (
-                  <span className="cell-sub">System account</span>
                 )}
               </div>
             ))}
