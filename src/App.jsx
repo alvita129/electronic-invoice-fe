@@ -43,7 +43,7 @@ const money = (n) =>
   }).format(n || 0);
 const date = (v) =>
   v
-    ? new Date(`${v.slice(0, 10)}T00:00:00`).toLocaleDateString("id-ID", {
+    ? new Date(`${v.slice(0, 10)}T00:00:00`).toLocaleDateString("en-GB", {
         day: "2-digit",
         month: "short",
         year: "numeric",
@@ -64,7 +64,19 @@ const statusLabel = (s) =>
     REJECTED: "Rejected",
     RETURNED_TO_ADMIN: "Returned",
     ARCHIVED: "Archived",
+    OVERDUE: "Overdue",
   })[s] || s;
+
+function displayedInvoiceStatus(invoice) {
+  if (invoice.archived) return "ARCHIVED";
+  const workflowStatus = invoice.invoiceStatus;
+  const activeStatuses = ["SUBMITTED", "APPROVED_LV1", "APPROVED_LV2"];
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return activeStatuses.includes(workflowStatus) && invoice.dueDt?.slice(0, 10) < today
+    ? "OVERDUE"
+    : workflowStatus;
+}
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -88,6 +100,7 @@ function App() {
   const [editor, setEditor] = useState(null);
   const [pendingReview, setPendingReview] = useState(null);
   const [userEditor, setUserEditor] = useState(null);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [decisionNote, setDecisionNote] = useState("");
   const [login, setLogin] = useState({ username: "", password: "" });
 
@@ -424,6 +437,9 @@ function App() {
                 {user.firstName} {user.lastName || ""}
               </b>
               <span>{user.userRole.replaceAll("_", " ")}</span>
+              <button className="profile-password-button" onClick={() => setPasswordDialogOpen(true)}>
+                Change password
+              </button>
             </div>
             <button className="icon-button" title="Sign out" onClick={signOut}>
               ↪
@@ -541,6 +557,7 @@ function App() {
           )}
           {confirmDialog && <ConfirmDialog {...confirmDialog} close={() => setConfirmDialog(null)} confirm={async () => { const fn = confirmDialog.onConfirm; setConfirmDialog(null); await fn(); }} />}
           {auditDetailEntry && <AuditDetailDialog entry={auditDetailEntry} close={() => setAuditDetailEntry(null)} />}
+          {passwordDialogOpen && <PasswordChangeDialog close={() => setPasswordDialogOpen(false)} onDone={() => flash("Password changed successfully.")} />}
         </div>
       </main>
     </div>
@@ -620,7 +637,7 @@ function Dashboard({ user, invoices, totalAmount, setPage, createInvoice, openAu
   const [statusFilter, setStatusFilter] = useState("");
   const [invoicePage, setInvoicePage] = useState(1);
   const filteredInvoices = statusFilter
-    ? invoices.filter((invoice) => (invoice.archived ? "ARCHIVED" : invoice.invoiceStatus) === statusFilter)
+    ? invoices.filter((invoice) => displayedInvoiceStatus(invoice) === statusFilter)
     : invoices;
   const invoicePageCount = Math.max(1, Math.ceil(filteredInvoices.length / 10));
   const currentInvoicePage = Math.min(invoicePage, invoicePageCount);
@@ -713,6 +730,7 @@ function Dashboard({ user, invoices, totalAmount, setPage, createInvoice, openAu
                 <option value="REJECTED">Rejected</option>
                 <option value="RETURNED_TO_ADMIN">Returned</option>
                 <option value="ARCHIVED">Archived</option>
+                <option value="OVERDUE">Overdue</option>
               </select>
             </label>
             {user.userRole !== "ADMIN" && <button
@@ -807,7 +825,7 @@ function InvoiceTable({ invoices, audit, actions, openDetail, compact }) {
               <td>{date(i.dueDt)}</td>
               <td className="amount-cell">{money(i.totalAmount)}</td>
               <td>
-                <Status status={i.archived ? "ARCHIVED" : i.invoiceStatus} />
+                <Status status={displayedInvoiceStatus(i)} />
               </td>
               <td>
                 <div className="row-actions">
@@ -845,7 +863,7 @@ function InvoiceTable({ invoices, audit, actions, openDetail, compact }) {
 function Status({ status }) {
   return (
     <span className={`status status-${status?.toLowerCase()}`}>
-      {status === "ARCHIVED" ? "Archived" : statusLabel(status)}
+      {statusLabel(status)}
     </span>
   );
 }
@@ -908,9 +926,11 @@ function InvoiceEditor({ editor, setEditor, onSubmit, onBack, busy }) {
               <input
                 required
                 maxLength="100"
+                pattern="[A-Za-z0-9]+"
+                title="Use letters and numbers only."
                 value={form.invoiceNumber}
-                onChange={(e) => set("invoiceNumber", e.target.value)}
-                placeholder="e.g. INV-2026-001"
+                onChange={(e) => set("invoiceNumber", e.target.value.replace(/[^A-Za-z0-9]/g, ""))}
+                placeholder="Invoice number"
               />
             </label>
             <label>
@@ -1038,6 +1058,9 @@ function InvoiceEditor({ editor, setEditor, onSubmit, onBack, busy }) {
   );
 }
 function ApprovalList({ invoices, note, setNote, decide, busy }) {
+  const newestFirst = [...invoices].sort(
+    (a, b) => new Date(b.createdDt || b.issuedDt) - new Date(a.createdDt || a.issuedDt),
+  );
   return (
     <>
       <div className="page-heading">
@@ -1060,14 +1083,14 @@ function ApprovalList({ invoices, note, setNote, decide, busy }) {
         </section>
       ) : (
         <div className="approval-grid">
-          {invoices.map((invoice) => (
+          {newestFirst.map((invoice) => (
             <article className="panel approval-card" key={invoice.invoiceId}>
               <div className="approval-card-head">
                 <div>
                   <span className="eyebrow">INVOICE REVIEW</span>
                   <h2>{invoice.invoiceNumber}</h2>
                 </div>
-                <Status status={invoice.invoiceStatus} />
+                <Status status={displayedInvoiceStatus(invoice)} />
               </div>
               <div className="approval-amount">
                 {money(invoice.totalAmount)}
@@ -1099,7 +1122,7 @@ function ApprovalList({ invoices, note, setNote, decide, busy }) {
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="Add context or a reason for your decision…"
+                  placeholder="Remarks"
                   rows="3"
                 />
               </label>
@@ -1146,7 +1169,7 @@ function AuditPage({ audit, onShowDetails }) {
           <div className="eyebrow">RECORD OF ACTIVITY</div>
           <h1>Audit trail</h1>
           <p>
-            Sign in, sign out, and invoice activity across the workspace.
+            Record of activity across the workspace.
           </p>
         </div>
       </div>
@@ -1214,17 +1237,45 @@ function InvoiceDetail({ invoice, acknowledgement, canViewTrail, back, done, ope
   if (!invoice) return <EmptyState title="Invoice unavailable" detail="Return to the invoice list and select a record." />;
   return <>
     <div className="page-heading"><div><div className="eyebrow">INVOICE ACKNOWLEDGEMENT</div><h1>{invoice.invoiceNumber}</h1><p>Review the saved invoice details and status history.</p></div><button className="button button-quiet" onClick={acknowledgement ? done : back}>{acknowledgement ? "Done" : "Back"}</button></div>
-    <section className="panel form-panel"><div className="audit-summary"><div><span>STATUS</span><Status status={invoice.archived ? "ARCHIVED" : invoice.invoiceStatus} /></div><div><span>ISSUED</span><b>{date(invoice.issuedDt)}</b></div><div><span>DUE DATE</span><b>{date(invoice.dueDt)}</b></div><div><span>TOTAL</span><b>{money(invoice.totalAmount)}</b></div></div><div className="panel-heading"><div><h2>Invoice details</h2><p>Created by {invoice.createdBy || "—"}</p></div></div><div className="table-wrap"><table><thead><tr><th>DESCRIPTION</th><th>UNIT PRICE</th><th>QUANTITY</th><th>REMARKS</th><th>TOTAL</th></tr></thead><tbody>{invoice.items?.map((item) => <tr key={item.invoiceItemsId}><td>{item.itemName}</td><td>{money(item.unitPrice)}</td><td>{item.quantity}</td><td>{item.remarks || "—"}</td><td className="amount-cell">{money(item.totalPrice)}</td></tr>)}</tbody></table></div></section>
+    <section className="panel form-panel"><div className="audit-summary"><div><span>STATUS</span><Status status={displayedInvoiceStatus(invoice)} /></div><div><span>ISSUED</span><b>{date(invoice.issuedDt)}</b></div><div><span>DUE DATE</span><b>{date(invoice.dueDt)}</b></div><div><span>TOTAL</span><b>{money(invoice.totalAmount)}</b></div></div><div className="panel-heading"><div><h2>Invoice details</h2><p>Created by {invoice.createdBy || "—"}</p></div></div><div className="table-wrap"><table><thead><tr><th>DESCRIPTION</th><th>UNIT PRICE</th><th>QUANTITY</th><th>REMARKS</th><th>TOTAL</th></tr></thead><tbody>{invoice.items?.map((item) => <tr key={item.invoiceItemsId}><td>{item.itemName}</td><td>{money(item.unitPrice)}</td><td>{item.quantity}</td><td>{item.remarks || "—"}</td><td className="amount-cell">{money(item.totalPrice)}</td></tr>)}</tbody></table></div></section>
     {canViewTrail && <div className="invoice-trail-action"><button className="button button-quiet" onClick={openTrail}>View invoice trail</button></div>}
   </>;
 }
 function InvoiceTrailPage({ invoice, audit, back }) {
   const statusActions = ["CREATE_INVOICE", "SUBMIT", "APPROVE_LV1", "APPROVE_LV2", "REJECT", "RETURN_TO_ADMIN", "DELETE_INVOICE"];
-  const entries = audit.filter((entry) => statusActions.includes(entry.action)).sort((a, b) => new Date(a.logDt) - new Date(b.logDt));
+  const entries = audit.filter((entry) => statusActions.includes(entry.action)).sort((a, b) => new Date(b.logDt) - new Date(a.logDt));
   const labels = { CREATE_INVOICE: "Draft created", SUBMIT: "Submitted for approval", APPROVE_LV1: "Approved by Level 1 · Awaiting Level 2", APPROVE_LV2: "Invoice approved", REJECT: "Invoice rejected", RETURN_TO_ADMIN: "Returned for revision", DELETE_INVOICE: "Invoice archived" };
-  return <><div className="page-heading"><div><div className="eyebrow">INVOICE WORKFLOW</div><h1>Invoice trail</h1><p>{invoice?.invoiceNumber || "Invoice"} · Status and decision history.</p></div><button className="button button-quiet" onClick={back}>Back to invoice</button></div><section className="panel journey-panel"><div className="journey-summary"><div><span>CURRENT STATUS</span><Status status={invoice?.archived ? "ARCHIVED" : invoice?.invoiceStatus} /></div><div><span>STATUS EVENTS</span><b>{entries.length}</b></div></div>{entries.length ? <div className="journey">{entries.map((entry, index) => { let details = {}; try { details = JSON.parse(entry.auditDetails || "{}"); } catch { /* Keep the trail step readable if old details are malformed. */ } const last = index === entries.length - 1; return <article className={`journey-step ${last ? "current" : ""}`} key={entry.auditTrailsId}><div className={`journey-node journey-${entry.action.toLowerCase()}`}>{last ? "●" : "✓"}</div><div className="journey-card"><div className="journey-card-head"><div><h2>{labels[entry.action] || entry.action.replaceAll("_", " ")}</h2><span>{entry.username} · {entry.userRole.replaceAll("_", " ")}</span></div><time>{new Date(entry.logDt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</time></div>{details.remarks && <p className="journey-remarks">{details.remarks}</p>}</div></article>; })}</div> : <EmptyState title="No status changes yet" detail="Status changes will appear here as the invoice moves through its lifecycle." />}</section></>;
+  return <><div className="page-heading"><div><div className="eyebrow">INVOICE WORKFLOW</div><h1>Invoice trail</h1><p>{invoice?.invoiceNumber || "Invoice"} · Status and decision history.</p></div><button className="button button-quiet" onClick={back}>Back to invoice</button></div><section className="panel journey-panel"><div className="journey-summary"><div><span>CURRENT STATUS</span><Status status={displayedInvoiceStatus(invoice || {})} /></div><div><span>STATUS EVENTS</span><b>{entries.length}</b></div></div>{entries.length ? <div className="journey">{entries.map((entry, index) => { let details = {}; try { details = JSON.parse(entry.auditDetails || "{}"); } catch { /* Keep the trail step readable if old details are malformed. */ } const current = index === 0; return <article className={`journey-step ${current ? "current" : ""}`} key={entry.auditTrailsId}><div className={`journey-node journey-${entry.action.toLowerCase()}`}>{current ? "●" : "✓"}</div><div className="journey-card"><div className="journey-card-head"><div><h2>{labels[entry.action] || entry.action.replaceAll("_", " ")}</h2><span>{entry.username} · {entry.userRole.replaceAll("_", " ")}</span></div><time>{new Date(entry.logDt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</time></div>{details.remarks && <p className="journey-remarks">{details.remarks}</p>}</div></article>; })}</div> : <EmptyState title="No status changes yet" detail="Status changes will appear here as the invoice moves through its lifecycle." />}</section></>;
 }
 function ConfirmDialog({ title, message, close, confirm }) { return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><div className="eyebrow">CONFIRM ACTION</div><h2 id="confirm-title">{title}</h2><p>{message}</p><div className="form-actions"><button className="button button-quiet" onClick={close}>Cancel</button><button className="button button-primary" onClick={confirm}>Confirm</button></div></section></div>; }
+function PasswordChangeDialog({ close, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(event) {
+    event.preventDefault();
+    setError("");
+    const form = new FormData(event.currentTarget);
+    const currentPassword = form.get("currentPassword");
+    const newPassword = form.get("newPassword");
+    if (newPassword !== form.get("confirmPassword")) {
+      setError("The new passwords do not match.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.put("/auth/password", { currentPassword, newPassword });
+      onDone();
+      close();
+    } catch (e) {
+      setError(e.response?.data?.message || "Could not change your password.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) close(); }}><section className="confirm-dialog password-dialog" role="dialog" aria-modal="true" aria-labelledby="password-dialog-title"><div className="eyebrow">ACCOUNT SECURITY</div><h2 id="password-dialog-title">Change password</h2><p>Enter your current password, then choose a new password with at least 8 characters.</p>{error && <div className="alert alert-error password-dialog-error" role="alert">{error}</div>}<form onSubmit={submit}><label className="password-change-field"><span>Current password</span><PasswordInput name="currentPassword" autoComplete="current-password" required /></label><label className="password-change-field"><span>New password</span><PasswordInput name="newPassword" autoComplete="new-password" minLength="8" required /></label><label className="password-change-field"><span>Confirm new password</span><PasswordInput name="confirmPassword" autoComplete="new-password" minLength="8" required /></label><div className="form-actions"><button type="button" className="button button-quiet" onClick={close} disabled={busy}>Cancel</button><button className="button button-primary" disabled={busy}>{busy ? "Saving…" : "Save password"}</button></div></form></section></div>;
+}
 function auditSummary(data) {
   const state = data.after || {};
   if (data.event) return data.event.replaceAll("_", " ");
@@ -1401,13 +1452,16 @@ function UsersPage({
                 >
                   Edit
                 </button>
-                {member.userId !== currentUserId && (
+                {member.userId !== currentUserId && member.username?.toLowerCase() !== "admin" && (
                   <button
                     className="small-action danger-text"
                     onClick={() => removeUser(member)}
                   >
                     Delete
                   </button>
+                )}
+                {member.username?.toLowerCase() === "admin" && (
+                  <span className="cell-sub">System account</span>
                 )}
               </div>
             ))}

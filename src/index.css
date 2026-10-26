@@ -545,6 +545,10 @@ tr:last-child td {
   background: #f3edff;
   color: #8061b7;
 }
+.status-overdue {
+  background: #fff0f0;
+  color: #c74747;
+}
 .row-actions {
   display: flex;
   gap: 5px;
@@ -946,7 +950,7 @@ tr:last-child td {
   display: grid;
   gap: 8px;
 }
-.audit-summary span {
+.audit-summary > div > span:not(.status) {
   font-size: 8px;
   letter-spacing: 0.85px;
   font-weight: 700;
@@ -1298,6 +1302,41 @@ tr:last-child td {
 .invoice-trail-link { display:flex; justify-content:space-between; align-items:center; padding:18px 20px; margin-top:16px; }
 .invoice-trail-link h2 { margin:0 0 5px; font:700 15px Manrope,sans-serif; }
 .invoice-trail-link p { margin:0; color:var(--muted); font-size:11px; }
+
+/* Slightly increase compact text for easier reading without changing the layout scale. */
+:root { font-size: 15px; }
+.workspace-label,.eyebrow,.brand small { font-size:10px; }
+.nav-item { font-size:14px; }
+.nav-count { font-size:11px; }
+.profile-copy b,.member-copy b { font-size:12px; }
+.profile-copy span,.member-copy span { font-size:11px; }
+.page-heading p,.muted { font-size:13px; }
+.button { font-size:12px; }
+.stat-top { font-size:12px; }
+.stat-card small,.panel-heading p,.section-title p { font-size:11px; }
+.panel-heading h2,.section-title h2 { font-size:14px; }
+.status-filter,.status-filter select { font-size:11px; }
+.text-button { font-size:12px; }
+th { font-size:10px; }
+td,.invoice-link { font-size:12px; }
+.cell-sub { font-size:10px; }
+.status { font-size:10px; }
+.small-action { font-size:11px; }
+.form-grid label,.item-grid label,.user-form label,.remarks-label { font-size:12px; }
+.pagination > span,.page-number { font-size:11px; }
+.audit-change-table table { font-size:11px; }
+.audit-invoice-ref { font-size:12px; }
+.journey-card-head span,.journey-card-head time { font-size:11px; }
+.journey-remarks { font-size:12px; }
+.confirm-summary span,.confirm-fields span { font-size:11px; }
+.confirm-summary b,.confirm-fields b { font-size:13px; }
+.profile-password-button { padding:0; border:0; background:transparent; color:#4c64c2; font-size:11px; font-weight:600; text-align:left; }
+.profile-password-button:hover { color:#294fce; text-decoration:underline; }
+.password-dialog { width:min(460px,100%); }
+.password-change-field { display:grid; gap:7px; margin:14px 0; color:#536176; font-size:12px; font-weight:600; }
+.password-change-field input { width:100%; height:42px; border:1px solid #e4e8ef; border-radius:6px; padding:0 42px 0 12px; outline:0; background:#fff; color:#35445a; font:500 13px Manrope,sans-serif; }
+.password-change-field input:focus { border-color:#8da4f4; box-shadow:0 0 0 3px #365fe512; }
+.password-dialog-error { position:static; margin:12px 0; padding:10px 12px; }
 .invoice-trail-action { display:flex; justify-content:flex-end; margin-top:14px; }
 .art-content {
   position: relative;
