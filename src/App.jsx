@@ -101,7 +101,7 @@ function App() {
   const [pendingReview, setPendingReview] = useState(null);
   const [userEditor, setUserEditor] = useState(null);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-  const [decisionNote, setDecisionNote] = useState("");
+  const [decisionNotes, setDecisionNotes] = useState({});
   const [login, setLogin] = useState({ username: "", password: "" });
 
   const isAdmin = user?.userRole === "ADMIN";
@@ -289,6 +289,7 @@ function App() {
     }
   }
   async function decide(invoice, decision) {
+    const decisionNote = decisionNotes[invoice.invoiceId] || "";
     if (decision !== "approve" && !decisionNote.trim()) {
       setError("Add a reason before rejecting or returning an invoice.");
       return;
@@ -299,7 +300,11 @@ function App() {
       await api.put(`/approvals/${invoice.invoiceId}/${decision}`, {
         remarks: decisionNote,
       });
-      setDecisionNote("");
+      setDecisionNotes((current) => {
+        const next = { ...current };
+        delete next[invoice.invoiceId];
+        return next;
+      });
       await refresh();
       const successMessage = decision === "approve" && user.userRole === "APPROVER_LV1"
         ? "Sent for Level 2 approval."
@@ -524,8 +529,8 @@ function App() {
           {page === "approvals" && (
             <ApprovalList
               invoices={invoices}
-              note={decisionNote}
-              setNote={setDecisionNote}
+              notes={decisionNotes}
+              setNote={(invoiceId, note) => setDecisionNotes((current) => ({ ...current, [invoiceId]: note }))}
               decide={decide}
               busy={busy}
             />
@@ -1064,7 +1069,7 @@ function InvoiceEditor({ editor, setEditor, onSubmit, onBack, busy }) {
     </>
   );
 }
-function ApprovalList({ invoices, note, setNote, decide, busy }) {
+function ApprovalList({ invoices, notes, setNote, decide, busy }) {
   const newestFirst = [...invoices].sort(
     (a, b) => new Date(b.createdDt || b.issuedDt) - new Date(a.createdDt || a.issuedDt),
   );
@@ -1127,8 +1132,8 @@ function ApprovalList({ invoices, note, setNote, decide, busy }) {
                   REQUIRED TO REJECT OR RETURN
                 </span>
                 <textarea
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
+                  value={notes[invoice.invoiceId] || ""}
+                  onChange={(e) => setNote(invoice.invoiceId, e.target.value)}
                   placeholder="Remarks"
                   rows="3"
                 />
