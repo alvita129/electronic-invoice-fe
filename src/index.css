@@ -208,6 +208,9 @@ button:disabled {
   color: #8994a4;
   font-size: 18px;
 }
+.sign-out-label {
+  display: none;
+}
 .main-area {
   margin-left: 248px;
   min-height: 100vh;
@@ -1486,9 +1489,37 @@ td,.invoice-link { font-size:12px; }
     height: 30px;
   }
   .brand small,
-  .workspace-label,
-  .sidebar-bottom {
+  .workspace-label {
     display: none;
+  }
+  .sidebar-bottom {
+    display: block;
+    margin-top: 8px;
+  }
+  .profile {
+    padding: 9px 3px 0;
+  }
+  .profile-copy {
+    flex: 1;
+  }
+  .profile-copy b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sign-out-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: #526176;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .sign-out-label {
+    display: inline;
   }
   .nav-list {
     display: flex;

@@ -441,8 +441,15 @@ function App() {
                 Change password
               </button>
             </div>
-            <button className="icon-button" title="Sign out" onClick={signOut}>
-              ↪
+            <button
+              className="icon-button sign-out-button"
+              type="button"
+              title="Sign out"
+              aria-label="Sign out"
+              onClick={signOut}
+            >
+              <span aria-hidden="true">↪</span>
+              <span className="sign-out-label">Sign out</span>
             </button>
           </div>
         </div>
